@@ -1,0 +1,89 @@
+# wes-local-cache-manager -- Layer-2 quota backstop for the shared /local-cache.
+#
+# Modeled on kubernetes/wes-upload-agent.yaml, with the deliberate differences:
+#   * mounts the CACHE root (/media/plugin-data/local-cache), NOT uploads.
+#   * does NOT upload and does NOT need beehive ssh creds / upload-agent-config.
+#   * its job is ONLY to enforce two byte caps by an oldest-first periodic sweep.
+# See ../local-cache-design.md and manager/sweeper.py for the full rationale.
+#
+# NOTE: this is the TEST-ADD manifest (side-loaded image, see test-add-node.sh).
+# For production it would be folded into the WES kustomize stack + ansible the
+# same way wes-upload-agent is (configs + kustomization.yaml + node manifest).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wes-local-cache-manager-env
+  labels:
+    app.kubernetes.io/name: wes-local-cache-manager
+data:
+  CACHE_ROOT: "/local-cache"
+  SWEEP_INTERVAL_SECONDS: "60"
+  # per cache unit (<namespace>/<plugin>) -- one greedy plugin starves only itself
+  PER_SUBDIR_MAX_BYTES: "2147483648"     # 2 GiB
+  # per node total -- the outer ceiling across all caches (also catches strays)
+  PER_NODE_MAX_BYTES: "16106127360"      # 15 GiB
+  CACHE_UNIT_DEPTH: "2"                  # levels below root that define a "unit"
+  # DRY_RUN: "1"                         # uncomment to log evictions without deleting
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: wes-local-cache-manager
+  labels:
+    app.kubernetes.io/name: wes-local-cache-manager
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wes-local-cache-manager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wes-local-cache-manager
+    spec:
+      # =====================================================================
+      # TEST-ONLY node pin. Scopes this DaemonSet to H00F alone so the test-add
+      # cannot schedule fleet-wide. REMOVE FOR PRODUCTION -- a real deployment
+      # runs on every node (like wes-upload-agent, whose selector is <none>).
+      # (Belt-and-suspenders: the image is only side-loaded on H00F anyway, so
+      # pods elsewhere would ImagePullBackOff -- but an explicit pin is cleaner.)
+      # =====================================================================
+      nodeSelector:
+        kubernetes.io/hostname: 00004cbb4701d16c.agx-thor
+      priorityClassName: system-node-critical
+      tolerations:
+        # keep reclaiming space even under disk pressure (same as upload-agent)
+        - key: "node.kubernetes.io/disk-pressure"
+          operator: "Exists"
+      containers:
+        - name: wes-local-cache-manager
+          # side-loaded via podman + k3s ctr import (see test-add-node.sh)
+          image: localhost/wes-local-cache-manager:test
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              memory: 32Mi
+            requests:
+              cpu: 100m
+              memory: 32Mi
+          envFrom:
+            - configMapRef:
+                name: wes-local-cache-manager-env
+          volumeMounts:
+            - name: local-cache
+              mountPath: /local-cache
+          livenessProbe:
+            # sweeper touches /tmp/healthy each successful sweep; probe removes it.
+            # if a stuck loop fails to recreate it, the rm fails -> restart.
+            # interval allows a few missed sweeps before restarting.
+            exec:
+              command:
+                - rm
+                - /tmp/healthy
+            periodSeconds: 120
+            failureThreshold: 3
+      volumes:
+        - name: local-cache
+          hostPath:
+            path: /media/plugin-data/local-cache
+            type: DirectoryOrCreate

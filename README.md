@@ -4,6 +4,11 @@ Layer-2 quota backstop for the shared node cache `/local-cache`. A tiny
 DaemonSet, modeled on `wes-upload-agent`, whose ONLY job is to stop the shared
 cache from overrunning the disk.
 
+**New here? Read [`DESIGN-AND-PURPOSE.md`](DESIGN-AND-PURPOSE.md)** — the
+adoption-focused guide for sysadmins and plugin developers (what it is, how it
+complements `/uploads`, the two size caps, the Layer-1/Layer-2 model, and how to
+deploy it with the temporary start/teardown scripts).
+
 Full design: `../local-cache-design.md`. This directory is the working prototype
 for the test-add to H00F.
 

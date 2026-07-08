@@ -1,0 +1,37 @@
+# Changelog
+
+All notable changes to `wes-local-cache-manager`. Format loosely follows
+Keep a Changelog; this project uses semantic versioning.
+
+## [0.1.0] - 2026-07-08
+
+First tagged release — proposed for Sage CI rotation review (see `HANDOFF.md`).
+
+### Added
+- Layer-2 quota backstop for the shared `/local-cache` node cache: a small
+  stdlib-Python DaemonSet, modeled on `wes-upload-agent`, that enforces two byte
+  caps by an oldest-first periodic sweep — a per-unit cap (`<namespace>/<plugin>`,
+  default 2 GiB) and a per-node cap (default 15 GiB). Never uploads; never decides
+  which files matter (that is the plugin's Layer-1 job).
+- `DRY_RUN` mode: logs evictions without deleting (recommended for first-fleet
+  rollout).
+- Liveness via a health file touched each successful sweep (same pattern as
+  `wes-upload-agent`).
+- Symlink-safe scanning: uses `os.lstat`, skips non-regular files, and does not
+  descend symlinked subdirectories — safe on the world-writable (1777) shared dir.
+- Startup config validation: refuses to run (exit 2 → CrashLoopBackOff) on a
+  non-positive cap/interval/depth, `per_node < per_subdir`, or a non-numeric cap
+  value, so a ConfigMap typo cannot become fleet-wide data loss.
+- Unit tests (`make test`, self-bootstrapping venv): 21 tests covering eviction,
+  isolation, node backstop, DRY_RUN, symlink hardening, config validation, and
+  edge cases.
+- Two manifests: production (no node pin, pinned registry image) and a single-node
+  test overlay (side-loaded image; node pin commented out by default).
+- Docs: `DESIGN-AND-PURPOSE.md` (adoption guide) and `HANDOFF.md` (CI review
+  checklist). `.dockerignore` keeps the build context minimal.
+
+### Known limitations (documented, non-blocking)
+- Eviction orders by `mtime`, which is perturbable; acceptable for a blunt backstop.
+- No discovery mechanism; producers/consumers agree on paths by convention.
+- Every unit gets the same cap (no per-plugin size requests yet).
+- Not yet folded into the WES Ansible/kustomize stack (temporary scripts provided).

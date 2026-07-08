@@ -294,6 +294,12 @@ for later:
   per-node cap would always win, so no single plugin could ever starve the node.
 - **Filesystem project quotas** as optional hardening where the backing filesystem
   supports them (XFS/ext4), turning the soft sweep into a hard `ENOSPC` wall.
+- **Eviction ordering beyond mtime.** Layer 2 evicts oldest-first by file `mtime`,
+  which is simple and adequate for a blunt backstop but is perturbable — a plugin
+  that rewrites/touches files, or a copy that preserves mtimes, can skew the order.
+  This is acceptable by design (real retention *policy* is the plugin's job in
+  Layer 1); a future version could evict by a more robust signal (creation time,
+  an explicit index) if a concrete need arises.
 - **Ansible/kustomize integration** to replace the temporary scripts in §5, folding
   provisioning + deployment into the standard WES node setup alongside
   `wes-upload-agent`.

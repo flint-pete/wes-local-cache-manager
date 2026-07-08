@@ -51,7 +51,7 @@ spec:
           operator: "Exists"
       containers:
         - name: wes-local-cache-manager
-          image: waggle/wes-local-cache-manager:latest   # pin to a released tag in the WES stack
+          image: waggle/wes-local-cache-manager:0.1.0   # pinned release tag (see VERSION); update on each release
           imagePullPolicy: IfNotPresent
           resources:
             limits:

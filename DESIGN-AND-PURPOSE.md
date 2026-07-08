@@ -214,16 +214,17 @@ The repo ships two manifests so the production shape is unambiguous:
 - `kubernetes/wes-local-cache-manager.yaml` — **production**: no `nodeSelector`
   (runs on every node, like `wes-upload-agent`) and a registry image
   (`waggle/wes-local-cache-manager:<tag>`). This is what folds into the WES stack.
-- `kubernetes/test/wes-local-cache-manager.test.yaml` — **test-add**: pins to one
-  node via `nodeSelector` and uses the side-loaded image name. This is what
-  `test-add-node.sh` applies. Caps, probe, mount, and tolerations are identical to
-  production.
+- `kubernetes/test/wes-local-cache-manager.test.yaml` — **test-add**: uses the
+  side-loaded image name and an OPTIONAL node pin (commented out by default, so it
+  works on any single-node test cluster unedited). This is what `test-add-node.sh`
+  applies. Caps, probe, mount, and tolerations are identical to production.
 
 ### Two deployment caveats worth knowing
 
-- **Node scope.** The test overlay pins the DaemonSet to a single node via
-  `nodeSelector`; edit the hostname to your node. Production removes the pin and
-  runs everywhere.
+- **Node scope.** The test overlay's `nodeSelector` is commented out by default —
+  it works on a single-node cluster with no editing. Uncomment + set your hostname
+  only if you want to pin it explicitly on a multi-node cluster. Production has no
+  pin (runs everywhere).
 - **Image name must match what k3s stores.** The side-load retags the image to
   `docker.io/library/wes-local-cache-manager:test`, so the test overlay references
   that name. If it referenced `localhost/...`, kubelet would try to *pull* it and

@@ -1,8 +1,13 @@
 # wes-local-cache-manager
 
-Layer-2 quota backstop for the shared node cache `/local-cache`. A tiny
-DaemonSet, modeled on `wes-upload-agent`, whose ONLY job is to stop the shared
-cache from overrunning the disk.
+`wes-local-cache-manager` adds a **shared, node-local cache** (`/local-cache`) that
+lets plugins hand data to each other on the same node — the producer/consumer model
+that `/uploads` (cloud-bound, transient) never supported. It makes that cache safe
+with **two size caps** (per-plugin and per-node) enforced by a small DaemonSet that
+mirrors `wes-upload-agent`. Retention *policy* stays with the plugin (Layer 1); this
+service is only the disk *backstop* (Layer 2). Stand it up today with the two
+temporary scripts; adoption is small and requires no understanding beyond this
+document.
 
 **New here? Read [`DESIGN-AND-PURPOSE.md`](DESIGN-AND-PURPOSE.md)** — the
 adoption-focused guide for sysadmins and plugin developers (what it is, how it
@@ -12,9 +17,6 @@ deploy it with the temporary start/teardown scripts).
 **Evaluating it for CI rotation? Read [`HANDOFF.md`](HANDOFF.md)** — the review
 checklist: what's done/verified and what's CI-owned (image publish, node
 provisioning, kustomize integration).
-
-Full design: `../local-cache-design.md`. This directory is the working prototype
-for the test-add to H00F.
 
 ## What it is / is NOT
 

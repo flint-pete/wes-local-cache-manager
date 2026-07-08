@@ -3,8 +3,8 @@
 # This is the manifest test-add-node.sh applies. It differs from the production
 # manifest (../wes-local-cache-manager.yaml) in exactly two ways, both required
 # for a safe local test:
-#   1. nodeSelector pins the DaemonSet to ONE node, so a test-add cannot schedule
-#      fleet-wide. EDIT the hostname below to your node.
+#   1. an OPTIONAL nodeSelector (commented out by default) to pin the DaemonSet to
+#      one node. See the note at the selector below.
 #   2. image is the side-loaded name (docker.io/library/...:test), NOT a registry
 #      image -- because test-add-node.sh builds it natively with podman and imports
 #      it into k3s. The side-load retags to docker.io/library/..., so the manifest
@@ -41,10 +41,14 @@ spec:
       labels:
         app.kubernetes.io/name: wes-local-cache-manager
     spec:
-      # TEST-ONLY node pin -- scopes this DaemonSet to one node. EDIT to your node
-      # (get it via: kubectl get nodes). Removed entirely in the production manifest.
-      nodeSelector:
-        kubernetes.io/hostname: 00004cbb4701d16c.agx-thor
+      # OPTIONAL node pin. By DEFAULT it is commented out, so this overlay works on
+      # any single-node test cluster with no editing. You do NOT need it: the test
+      # image is side-loaded onto one node only, so on a multi-node cluster the pod
+      # ImagePullBackOffs anywhere it wasn't loaded regardless. Uncomment + set your
+      # hostname (kubectl get nodes) ONLY if you want to be extra-explicit about
+      # which node runs it on a multi-node cluster. Production removes this entirely.
+      # nodeSelector:
+      #   kubernetes.io/hostname: <your-node-hostname>
       priorityClassName: system-node-critical
       tolerations:
         - key: "node.kubernetes.io/disk-pressure"

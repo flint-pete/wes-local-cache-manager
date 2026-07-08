@@ -11,7 +11,7 @@ hard byte caps on a periodic sweep:
      PER_NODE_MAX_BYTES (this pass also catches stray files that sit outside any
      unit, so nothing escapes the ceiling).
 
-DIVISION OF RESPONSIBILITY (the two-layer model -- see local-cache-design.md):
+DIVISION OF RESPONSIBILITY (the two-layer model -- see DESIGN-AND-PURPOSE.md):
   * Layer 1 (the PLUGIN, via pywaggle2 / its own ring): graceful, semantics-aware
     eviction -- WHICH files are still needed (newest-N, LRU rows, per-camera...).
     Only the plugin knows its data's meaning, so only the plugin can do this.

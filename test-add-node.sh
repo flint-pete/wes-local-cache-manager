@@ -21,7 +21,7 @@ set -euo pipefail
 CACHE_DIR="${CACHE_DIR:-/media/plugin-data/local-cache}"
 IMAGE="${IMAGE:-localhost/wes-local-cache-manager:test}"
 K3S_IMAGE="docker.io/library/wes-local-cache-manager:test"   # name k3s will see
-MANIFEST="${MANIFEST:-kubernetes/wes-local-cache-manager.yaml}"
+MANIFEST="${MANIFEST:-kubernetes/test/wes-local-cache-manager.test.yaml}"
 KUBECONFIG_ADMIN="/etc/rancher/k3s/k3s.yaml"                 # admin: can touch daemonsets
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 

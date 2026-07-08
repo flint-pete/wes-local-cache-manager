@@ -9,6 +9,10 @@ adoption-focused guide for sysadmins and plugin developers (what it is, how it
 complements `/uploads`, the two size caps, the Layer-1/Layer-2 model, and how to
 deploy it with the temporary start/teardown scripts).
 
+**Evaluating it for CI rotation? Read [`HANDOFF.md`](HANDOFF.md)** — the review
+checklist: what's done/verified and what's CI-owned (image publish, node
+provisioning, kustomize integration).
+
 Full design: `../local-cache-design.md`. This directory is the working prototype
 for the test-add to H00F.
 

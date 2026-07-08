@@ -207,15 +207,27 @@ the cache directory and its contents intact** (that data may still be wanted); p
 WIPE_CACHE=1 ./test-remove-node.sh # remove service AND empty the cache
 ```
 
+### Two manifests: production vs test
+
+The repo ships two manifests so the production shape is unambiguous:
+
+- `kubernetes/wes-local-cache-manager.yaml` — **production**: no `nodeSelector`
+  (runs on every node, like `wes-upload-agent`) and a registry image
+  (`waggle/wes-local-cache-manager:<tag>`). This is what folds into the WES stack.
+- `kubernetes/test/wes-local-cache-manager.test.yaml` — **test-add**: pins to one
+  node via `nodeSelector` and uses the side-loaded image name. This is what
+  `test-add-node.sh` applies. Caps, probe, mount, and tolerations are identical to
+  production.
+
 ### Two deployment caveats worth knowing
 
-- **Node scope.** The prototype manifest pins the DaemonSet to a single test node
-  via `nodeSelector`. A real deployment removes that pin and runs on every node
-  (exactly like `wes-upload-agent`, whose selector is empty).
+- **Node scope.** The test overlay pins the DaemonSet to a single node via
+  `nodeSelector`; edit the hostname to your node. Production removes the pin and
+  runs everywhere.
 - **Image name must match what k3s stores.** The side-load retags the image to
-  `docker.io/library/wes-local-cache-manager:test`, so the manifest references that
-  name. If the manifest instead referenced `localhost/...`, kubelet would try to
-  *pull* it and fail with `ImagePullBackOff`. Keep the manifest image ref aligned
+  `docker.io/library/wes-local-cache-manager:test`, so the test overlay references
+  that name. If it referenced `localhost/...`, kubelet would try to *pull* it and
+  fail with `ImagePullBackOff`. Keep the overlay's image ref aligned
   with the side-loaded name.
 
 ---

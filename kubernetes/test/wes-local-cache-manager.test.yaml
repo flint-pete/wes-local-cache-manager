@@ -1,14 +1,16 @@
-# wes-local-cache-manager -- Layer-2 quota backstop for the shared /local-cache.
+# wes-local-cache-manager -- TEST-ADD overlay (single-node, side-loaded image).
 #
-# PRODUCTION manifest. Modeled on kubernetes/wes-upload-agent.yaml, with the
-# deliberate differences:
-#   * mounts the CACHE root (/media/plugin-data/local-cache), NOT uploads;
-#   * does NOT upload and needs no beehive ssh creds / upload-agent config;
-#   * its only job is to enforce two byte caps by an oldest-first periodic sweep.
-# See ../DESIGN-AND-PURPOSE.md and manager/sweeper.py for the rationale.
-#
-# Runs on EVERY node (no nodeSelector), exactly like wes-upload-agent. Uses a
-# registry image. For the local side-loaded test-add, see the `test/` overlay.
+# This is the manifest test-add-node.sh applies. It differs from the production
+# manifest (../wes-local-cache-manager.yaml) in exactly two ways, both required
+# for a safe local test:
+#   1. nodeSelector pins the DaemonSet to ONE node, so a test-add cannot schedule
+#      fleet-wide. EDIT the hostname below to your node.
+#   2. image is the side-loaded name (docker.io/library/...:test), NOT a registry
+#      image -- because test-add-node.sh builds it natively with podman and imports
+#      it into k3s. The side-load retags to docker.io/library/..., so the manifest
+#      MUST use that name; localhost/... would make kubelet try to PULL and
+#      ImagePullBackOff.
+# Everything else (caps, probe, mount, tolerations) matches production.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -19,15 +21,10 @@ metadata:
 data:
   CACHE_ROOT: "/local-cache"
   SWEEP_INTERVAL_SECONDS: "60"
-  # per cache unit (<namespace>/<plugin>) -- one greedy plugin starves only itself
   PER_SUBDIR_MAX_BYTES: "2147483648"     # 2 GiB
-  # per node total -- the outer ceiling across all caches (also catches strays)
   PER_NODE_MAX_BYTES: "16106127360"      # 15 GiB
-  CACHE_UNIT_DEPTH: "2"                  # levels below root that define a "unit"
-  # SAFE ROLLOUT: set DRY_RUN to "1" to log evictions WITHOUT deleting. Recommended
-  # for the first deployment to a fleet -- confirm the sweep logs look right, then
-  # remove it to enable real eviction.
-  # DRY_RUN: "1"
+  CACHE_UNIT_DEPTH: "2"
+  # DRY_RUN: "1"                         # uncomment to log evictions without deleting
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -44,14 +41,18 @@ spec:
       labels:
         app.kubernetes.io/name: wes-local-cache-manager
     spec:
+      # TEST-ONLY node pin -- scopes this DaemonSet to one node. EDIT to your node
+      # (get it via: kubectl get nodes). Removed entirely in the production manifest.
+      nodeSelector:
+        kubernetes.io/hostname: 00004cbb4701d16c.agx-thor
       priorityClassName: system-node-critical
       tolerations:
-        # keep reclaiming space even under disk pressure (same as upload-agent)
         - key: "node.kubernetes.io/disk-pressure"
           operator: "Exists"
       containers:
         - name: wes-local-cache-manager
-          image: waggle/wes-local-cache-manager:latest   # pin to a released tag in the WES stack
+          # side-loaded name (see header + test-add-node.sh), NOT a registry image.
+          image: docker.io/library/wes-local-cache-manager:test
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -66,8 +67,6 @@ spec:
             - name: local-cache
               mountPath: /local-cache
           livenessProbe:
-            # sweeper touches /tmp/healthy each successful sweep; probe removes it.
-            # if a stuck loop fails to recreate it, the rm fails -> restart.
             exec:
               command:
                 - rm

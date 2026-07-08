@@ -5,7 +5,7 @@
 # WIPE_CACHE=1 to also empty it.
 set -euo pipefail
 
-MANIFEST="${MANIFEST:-kubernetes/wes-local-cache-manager.yaml}"
+MANIFEST="${MANIFEST:-kubernetes/test/wes-local-cache-manager.test.yaml}"
 CACHE_DIR="${CACHE_DIR:-/media/plugin-data/local-cache}"
 K3S_IMAGE="docker.io/library/wes-local-cache-manager:test"
 KUBECONFIG_ADMIN="/etc/rancher/k3s/k3s.yaml"

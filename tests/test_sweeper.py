@@ -69,14 +69,14 @@ def test_files_by_age_oldest_first(tmp_path):
 
 def test_files_by_age_skips_vanished(tmp_path, monkeypatch):
     _write(str(tmp_path / "a.jpg"), 1)
-    real_stat = os.stat
+    real_lstat = os.lstat
 
-    def flaky_stat(p, *a, **k):
-        if p.endswith("a.jpg"):
+    def flaky_lstat(p, *a, **k):
+        if str(p).endswith("a.jpg"):
             raise FileNotFoundError(p)
-        return real_stat(p, *a, **k)
+        return real_lstat(p, *a, **k)
 
-    monkeypatch.setattr(sweeper.os, "stat", flaky_stat)
+    monkeypatch.setattr(sweeper.os, "lstat", flaky_lstat)
     assert sweeper.files_by_age(str(tmp_path)) == []
 
 
@@ -165,3 +165,53 @@ def test_sweep_empty_root_no_error(tmp_path, caps, monkeypatch):
 
 def test_per_unit_cap_is_the_default(caps):
     assert sweeper.per_unit_cap("/local-cache/ns/plugin") == sweeper.PER_SUBDIR_MAX
+
+
+# --- symlink hardening (world-writable 1777 dir) -----------------------------
+
+def test_files_by_age_skips_symlinked_files(tmp_path):
+    real = _write(str(tmp_path / "real.jpg"), 100)
+    # a symlink pointing OUTSIDE the cache (e.g. at a sensitive file)
+    outside = _write(str(tmp_path.parent / "secret.txt"), 999)
+    os.symlink(outside, str(tmp_path / "evil"))
+    got = [os.path.basename(f[2]) for f in sweeper.files_by_age(str(tmp_path))]
+    assert got == ["real.jpg"]              # symlink ignored, target never counted
+
+
+def test_files_by_age_does_not_descend_symlinked_dirs(tmp_path):
+    # a symlinked subdir pointing at a tree outside the cache must not be traversed
+    victim = tmp_path.parent / "victim"
+    _write(str(victim / "important.dat"), 500)
+    _write(str(tmp_path / "real.jpg"), 100)
+    os.symlink(str(victim), str(tmp_path / "link-to-victim"))
+    files = sweeper.files_by_age(str(tmp_path))
+    names = [os.path.basename(f[2]) for f in files]
+    assert names == ["real.jpg"]            # never walked into the symlinked dir
+    assert os.path.exists(str(victim / "important.dat"))  # untouched
+
+
+# --- config validation (fail-fast on dangerous misconfig) --------------------
+
+@pytest.mark.parametrize("attr", ["PER_SUBDIR_MAX", "PER_NODE_MAX",
+                                  "SWEEP_INTERVAL", "CACHE_UNIT_DEPTH"])
+def test_validate_config_rejects_nonpositive(monkeypatch, caps, attr):
+    monkeypatch.setattr(sweeper, attr, 0)
+    with pytest.raises(sweeper.ConfigError):
+        sweeper.validate_config()
+
+
+def test_validate_config_rejects_node_below_subdir(monkeypatch, caps):
+    monkeypatch.setattr(sweeper, "PER_SUBDIR_MAX", 5000)
+    monkeypatch.setattr(sweeper, "PER_NODE_MAX", 1000)
+    with pytest.raises(sweeper.ConfigError):
+        sweeper.validate_config()
+
+
+def test_validate_config_accepts_sane(caps):
+    sweeper.validate_config()   # caps fixture is valid -> no raise
+
+
+def test_env_int_rejects_non_numeric(monkeypatch):
+    monkeypatch.setenv("PER_NODE_MAX_BYTES", "2Gi")
+    with pytest.raises(sweeper.ConfigError):
+        sweeper._env_int("PER_NODE_MAX_BYTES", 0)

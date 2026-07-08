@@ -1,0 +1,12 @@
+.git/
+.gitignore
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+tests/
+*.md
+kubernetes/
+test-add-node.sh
+test-remove-node.sh
+Makefile

@@ -33,6 +33,7 @@ XFS/ext4 project quotas -- is filesystem-dependent; see README.)
 
 import logging
 import os
+import stat
 import time
 
 log = logging.getLogger("cache-manager")
@@ -40,11 +41,23 @@ log = logging.getLogger("cache-manager")
 
 def _env_int(name, default):
     v = os.environ.get(name)
-    return int(v) if v else default
+    if not v:
+        return default
+    try:
+        return int(v)
+    except ValueError:
+        raise ConfigError(
+            "%s must be an integer number of BYTES (got %r). Note: plain bytes "
+            "only -- k8s-style suffixes like '2Gi' are NOT supported here; use "
+            "2147483648." % (name, v))
 
 
 def _env_bool(name):
     return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+class ConfigError(Exception):
+    """Fatal misconfiguration -- refuse to run rather than risk mass deletion."""
 
 
 # --- configuration (via the wes-local-cache-manager-env ConfigMap) ------------
@@ -55,6 +68,30 @@ PER_NODE_MAX     = _env_int("PER_NODE_MAX_BYTES", 15 * 1024 ** 3)    # 15 GiB
 CACHE_UNIT_DEPTH = _env_int("CACHE_UNIT_DEPTH", 2)                   # <ns>/<plugin>
 DRY_RUN          = _env_bool("DRY_RUN")                              # log, don't delete
 HEALTH_FILE      = os.environ.get("HEALTH_FILE", "/tmp/healthy")
+
+
+def validate_config():
+    """Fail-fast on a dangerous misconfiguration BEFORE the first sweep.
+
+    A non-positive cap (e.g. a ConfigMap typo `PER_NODE_MAX_BYTES: "0"`) would make
+    every sweep try to evict the ENTIRE cache -- a typo turning into fleet-wide data
+    loss. We refuse to start instead (the pod CrashLoopBackOffs loudly, which an
+    operator notices, rather than silently deleting everything). Reads module
+    globals so it runs after config load. Raises ConfigError.
+    """
+    for name, val in (("PER_SUBDIR_MAX_BYTES", PER_SUBDIR_MAX),
+                      ("PER_NODE_MAX_BYTES", PER_NODE_MAX),
+                      ("SWEEP_INTERVAL_SECONDS", SWEEP_INTERVAL),
+                      ("CACHE_UNIT_DEPTH", CACHE_UNIT_DEPTH)):
+        if val <= 0:
+            raise ConfigError(
+                "%s must be a positive integer (got %d). Refusing to start: a "
+                "non-positive cap would evict the entire cache." % (name, val))
+    if PER_NODE_MAX < PER_SUBDIR_MAX:
+        raise ConfigError(
+            "PER_NODE_MAX_BYTES (%d) must be >= PER_SUBDIR_MAX_BYTES (%d): the "
+            "node ceiling cannot be smaller than a single unit's cap."
+            % (PER_NODE_MAX, PER_SUBDIR_MAX))
 
 
 def cache_units(root, depth):
@@ -73,14 +110,27 @@ def cache_units(root, depth):
 
 def files_by_age(path):
     """Regular files under `path` as (mtime, size, fullpath), OLDEST FIRST.
-    Files that vanish mid-scan (racing a plugin or a prior eviction) are skipped."""
+
+    Hardening for a world-writable (1777) shared dir: we NEVER follow symlinks.
+    os.walk runs with followlinks=False (default) AND we prune any symlinked
+    subdirectories, so a malicious symlink cannot make the sweep traverse outside
+    the cache root. We os.lstat (not os.stat) and skip anything that is not a
+    regular file, so a symlink pointing at /etc (or another plugin's data) is
+    ignored -- its target is never stat'd, counted, or removed. Files that vanish
+    mid-scan (racing a plugin or a prior eviction) are skipped.
+    """
     out = []
-    for dirpath, _, names in os.walk(path):
+    for dirpath, dirnames, names in os.walk(path, followlinks=False):
+        # prune symlinked subdirectories -- do not descend through them
+        dirnames[:] = [d for d in dirnames
+                       if not os.path.islink(os.path.join(dirpath, d))]
         for name in names:
             fp = os.path.join(dirpath, name)
             try:
-                st = os.stat(fp)
+                st = os.lstat(fp)
             except (FileNotFoundError, OSError):
+                continue
+            if not stat.S_ISREG(st.st_mode):   # skip symlinks, sockets, fifos...
                 continue
             out.append((st.st_mtime, st.st_size, fp))
     out.sort(key=lambda t: t[0])
@@ -168,6 +218,11 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
+    try:
+        validate_config()
+    except ConfigError as e:
+        log.error("fatal config error: %s", e)
+        raise SystemExit(2)
     log.info("wes-local-cache-manager start: root=%s interval=%ds per_subdir=%d "
              "per_node=%d unit_depth=%d dry_run=%s",
              CACHE_ROOT, SWEEP_INTERVAL, PER_SUBDIR_MAX, PER_NODE_MAX,

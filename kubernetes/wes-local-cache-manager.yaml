@@ -57,8 +57,11 @@ spec:
           operator: "Exists"
       containers:
         - name: wes-local-cache-manager
-          # side-loaded via podman + k3s ctr import (see test-add-node.sh)
-          image: localhost/wes-local-cache-manager:test
+          # side-loaded via podman + k3s ctr import (see test-add-node.sh).
+          # MUST match the name k3s containerd stores it under -- the side-load
+          # retags to docker.io/library/... so use that here, NOT localhost/...,
+          # else kubelet tries to PULL localhost and ImagePullBackOffs.
+          image: docker.io/library/wes-local-cache-manager:test
           imagePullPolicy: IfNotPresent
           resources:
             limits:

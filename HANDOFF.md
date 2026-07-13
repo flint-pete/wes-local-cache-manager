@@ -11,11 +11,11 @@ checklist: what's done, and what we're asking the CI team to own.
 
 A tiny stdlib-Python DaemonSet, modeled directly on `wes-upload-agent`. It mounts
 the shared hostPath `/media/plugin-data/local-cache` and, on a periodic sweep,
-enforces two byte caps by deleting oldest-first — a **per-unit** cap
-(`<namespace>/<plugin>`, default 2 GiB) and a **per-node** cap (default 15 GiB). It
-never uploads and never decides *which* files matter; graceful, semantics-aware
-eviction stays in the plugin (Layer 1). This service is only the disk backstop
-(Layer 2). A well-behaved plugin is never touched.
+enforces two byte caps by deleting oldest-first — a **per-unit** cap (each directory
+`CACHE_UNIT_DEPTH` levels below the root, default 2; default 2 GiB) and a **per-node**
+cap (default 15 GiB). It never uploads and never decides *which* files matter;
+graceful, semantics-aware eviction stays in the plugin (Layer 1). This service is only
+the disk backstop (Layer 2). A well-behaved plugin is never touched.
 
 ## Ready for review
 
@@ -23,10 +23,10 @@ eviction stays in the plugin (Layer 1). This service is only the disk backstop
   at production caps; eviction confirmed end-to-end against real camera frames
   written by `image-sampler2` (per-unit eviction fired, neighbor untouched, node
   backstop measured).
-- **Unit tests:** `make test` (pure stdlib + pytest, no venv needed) — 12 tests
-  covering oldest-first eviction, per-unit isolation, node backstop + stray sweep,
-  DRY_RUN (deletes nothing), files vanishing mid-scan, unit-depth boundary, and
-  empty-cache safety.
+- **Unit tests:** `make test` (pure stdlib + pytest) — 21 tests covering oldest-first
+  eviction, per-unit isolation, node backstop + stray sweep, DRY_RUN (deletes
+  nothing), files vanishing mid-scan, unit-depth boundary, empty-cache safety,
+  symlink hardening (world-writable dir), and fail-fast config validation.
 - **Two manifests:** `kubernetes/wes-local-cache-manager.yaml` (production: no node
   pin, registry image) and `kubernetes/test/…test.yaml` (single-node side-load
   overlay used by `test-add-node.sh`).

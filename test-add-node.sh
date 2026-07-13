@@ -32,9 +32,9 @@ echo
 
 # === STEP 1: provision the cache host dir  [ANSIBLE CANDIDATE: node fs setup] ==
 # Mirrors how /media/plugin-data/uploads is provisioned. World-writable+sticky so
-# plugin pods running as various uids can each create their own <ns>/<plugin>
-# subtree and read across them (the Layer-1 cross-user-read requirement). The
-# sticky bit (1777) stops one plugin deleting another's files by name.
+# plugin pods running as various uids can each create their own cache subtree under
+# the root and read across them (the cross-user-read requirement). The sticky bit
+# (1777) stops one plugin deleting another's files by name.
 echo "[1/5] provisioning $CACHE_DIR (sudo)"
 sudo mkdir -p "$CACHE_DIR"
 sudo chmod 1777 "$CACHE_DIR"

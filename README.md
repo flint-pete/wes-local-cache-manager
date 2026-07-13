@@ -23,8 +23,9 @@ provisioning, kustomize integration).
 IT IS a blunt, semantics-free safety net. On a periodic sweep it enforces two
 hard byte caps, evicting **oldest-first** only against a cache unit that has
 already blown past its allocation:
-- **per-unit cap** (`PER_SUBDIR_MAX_BYTES`) on each `<namespace>/<plugin>` subdir
-  -- isolation, so one greedy plugin starves only itself;
+- **per-unit cap** (`PER_SUBDIR_MAX_BYTES`) on each directory `CACHE_UNIT_DEPTH`
+  levels below the root (default 2, e.g. `<cache-name>/<camera>`) -- isolation, so
+  one greedy producer starves only its own unit;
 - **per-node cap** (`PER_NODE_MAX_BYTES`) across the whole root -- the outer
   ceiling, which also mops up stray files outside any unit.
 

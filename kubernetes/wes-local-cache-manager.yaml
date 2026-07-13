@@ -19,7 +19,7 @@ metadata:
 data:
   CACHE_ROOT: "/local-cache"
   SWEEP_INTERVAL_SECONDS: "60"
-  # per cache unit (<namespace>/<plugin>) -- one greedy plugin starves only itself
+  # per cache unit (each dir CACHE_UNIT_DEPTH levels below root) -- one greedy unit starves only itself
   PER_SUBDIR_MAX_BYTES: "2147483648"     # 2 GiB
   # per node total -- the outer ceiling across all caches (also catches strays)
   PER_NODE_MAX_BYTES: "16106127360"      # 15 GiB

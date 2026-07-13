@@ -3,6 +3,22 @@
 All notable changes to `wes-local-cache-manager`. Format loosely follows
 Keep a Changelog; this project uses semantic versioning.
 
+## [0.1.2] - 2026-07-13
+
+Documentation-only pass (no behavior change): harvested the actionable mount
+mechanics from the companion `local-cache-design.md` into HANDOFF.
+
+### Added
+- HANDOFF "How a plugin gets the `/local-cache` mount" section: the `volume:`
+  field already exists in `PluginSpec` (a job can request the hostPath today), its
+  two caveats (requires a nodeSelector; unresolved `IsOwnedByRoot` root-ownership
+  TODO), and the recommended `sage.yaml` auto-mount opt-in that also sidesteps the
+  root-ownership concern.
+- HANDOFF "Open items & known limitations": documented that node-cap eviction is
+  globally oldest-first, not offender-weighted — so CI knows the current behavior
+  (per-unit isolation is unaffected; a future refinement could evict proportionally
+  from the biggest over-cap offenders on a node-cap breach).
+
 ## [0.1.1] - 2026-07-13
 
 Documentation-only pass for the CI handoff (no behavior change).

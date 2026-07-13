@@ -59,6 +59,30 @@ These are legitimately platform-side and need CI decisions/infra we don't contro
    a producer writes, but have not yet run a *separate* consumer pod reading across
    units. Worth confirming with any second plugin during integration.
 
+## How a plugin gets the `/local-cache` mount
+
+The manager bounds the cache; a plugin still needs the shared dir mounted into its
+pod to use it. Verified from `edge-scheduler`/`plugin.go` source, the mount field
+**already exists** — the ask on WES is provisioning + documentation + an opt-in, not
+a new schema field:
+
+- **The `volume:` field is already there.** `datatype.PluginSpec` carries
+  `Volume map[string]string`, and SES mounts each `from→to` entry as a hostPath into
+  the pod (resourcemanager.go). So a job can request
+  `/media/plugin-data/local-cache → /local-cache` **today**, no code change.
+- **Caveat 1 — it currently requires a nodeSelector.** Volume mounting errors out
+  without `--selector`/`--node` (resourcemanager.go). Fine for pinned deployments,
+  awkward for fleet-portable jobs.
+- **Caveat 2 — an unresolved root-ownership TODO.** The code has a commented-out
+  `IsOwnedByRoot` check meant to forbid mounting non-root-owned host dirs; until
+  it's resolved, arbitrary hostPath mounting is a flagged security concern.
+- **Recommended interface — auto-mount opt-in.** Rather than every job hand-rolling a
+  raw `volume:` hostPath, add a `sage.yaml` flag (e.g. `local_cache: true`) that makes
+  SES auto-mount the WES-owned `/local-cache` path. This is cleaner for plugin authors
+  AND sidesteps the root-ownership concern (WES owns the path, so the mount is
+  trusted). Lean: ship the manager with fixed-default caps first; add this opt-in as
+  the clean adoption interface.
+
 ## Suggested rollout order
 
 1. Publish the image; pin the production manifest to it.
@@ -66,9 +90,20 @@ These are legitimately platform-side and need CI decisions/infra we don't contro
 3. Remove `DRY_RUN`; confirm real eviction only touches over-cap units.
 4. Roll out fleet-wide via the kustomize stack.
 
-## Open design question (non-blocking)
+## Open items & known limitations (non-blocking)
 
-Per-plugin size requests: every unit gets the same `PER_SUBDIR_MAX_BYTES` today.
+**Per-plugin size requests.** Every unit gets the same `PER_SUBDIR_MAX_BYTES` today.
 `per_unit_cap()` has a documented extension point (a `sage.yaml` field surfaced to
 the manager) if some plugin legitimately needs more. The per-node cap always wins,
 so no single plugin can starve the node. Not needed for v1.
+
+**Node-cap eviction is globally oldest-first, not offender-weighted.** The per-unit
+pass isolates cleanly (a greedy unit is trimmed to its own cap without touching
+neighbors). But the *node-wide* backstop, when the total ceiling is breached, evicts
+oldest-first across ALL files regardless of which unit they belong to — so it can
+trim a well-behaved plugin's old files even when a different plugin is the actual
+disk hog. In practice the per-unit caps make a node-cap breach rare (it requires many
+units each near-but-under their cap simultaneously), and oldest-first is a defensible
+blunt policy. A future refinement could, on a node-cap breach, evict proportionally
+from the biggest over-allocation offenders first. Deferred as over-engineering for
+v1; noted so CI knows the current behavior.

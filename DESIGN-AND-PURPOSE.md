@@ -315,6 +315,17 @@ for later:
 - **Ansible/kustomize integration** to replace the temporary scripts in §5, folding
   provisioning + deployment into the standard WES node setup alongside
   `wes-upload-agent`.
+- **Pruning the reserved `.state` area.** The `RESERVED_STATE_DIRNAME` (`.state`)
+  carve-out is deliberately excluded from all caps and eviction so consumer
+  bookkeeping (e.g. seen-stores) survives. That trust assumes consumers keep their
+  state small and prune it themselves. If `.state` were ever to grow wild — a buggy
+  or abandoned consumer, an unbounded seen-store, orphaned instance keys — nothing
+  currently bounds it, and it does not count toward the node cap, so it could quietly
+  consume disk. A future version could add a light guard: a generous cap on `.state`
+  as a whole (evict oldest state files only when it blows a separate, high ceiling),
+  and/or GC of state subtrees whose owning consumer no longer exists. Kept out of v1
+  to preserve the simple "never touch state" invariant; revisit if real growth
+  appears.
 
 None of these block adoption: the component is useful and safe as-is, and each
 enhancement is additive.

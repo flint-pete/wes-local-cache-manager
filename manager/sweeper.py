@@ -69,6 +69,21 @@ CACHE_UNIT_DEPTH = _env_int("CACHE_UNIT_DEPTH", 2)                   # <ns>/<plu
 DRY_RUN          = _env_bool("DRY_RUN")                              # log, don't delete
 HEALTH_FILE      = os.environ.get("HEALTH_FILE", "/tmp/healthy")
 
+# Reserved state area: a top-level dir of this name under CACHE_ROOT
+# (e.g. /local-cache/.state/) is OFF-LIMITS to the sweep -- never counted toward a
+# cap and never evicted. It is where CONSUMER plugins keep durable, node-persistent
+# bookkeeping (e.g. a seen-store of processed unique_ids) that MUST survive pod
+# restarts. Without this carve-out the node-wide backstop would evict such state as
+# just another oldest file, silently wiping a consumer's memory under disk pressure.
+# Consumers are trusted to keep it tiny; it is excluded from the byte accounting.
+RESERVED_STATE_DIRNAME = os.environ.get("RESERVED_STATE_DIRNAME", ".state")
+
+
+def _reserved_state_root():
+    """Absolute path of the reserved state area, or None if disabled (empty name)."""
+    name = RESERVED_STATE_DIRNAME.strip("/")
+    return os.path.join(CACHE_ROOT.rstrip("/"), name) if name else None
+
 
 def validate_config():
     """Fail-fast on a dangerous misconfiguration BEFORE the first sweep.
@@ -100,7 +115,12 @@ def cache_units(root, depth):
     descend past a unit (its whole subtree counts toward that unit)."""
     root = root.rstrip("/")
     base = root.count(os.sep)
+    reserved = _reserved_state_root()
     for dirpath, dirnames, _ in os.walk(root):
+        # never descend into or yield the reserved consumer-state area
+        if reserved:
+            dirnames[:] = [d for d in dirnames
+                           if os.path.join(dirpath, d) != reserved]
         level = dirpath.count(os.sep) - base
         if level >= depth:
             if level == depth:
@@ -120,10 +140,15 @@ def files_by_age(path):
     mid-scan (racing a plugin or a prior eviction) are skipped.
     """
     out = []
+    reserved = _reserved_state_root()
     for dirpath, dirnames, names in os.walk(path, followlinks=False):
         # prune symlinked subdirectories -- do not descend through them
         dirnames[:] = [d for d in dirnames
                        if not os.path.islink(os.path.join(dirpath, d))]
+        # prune the reserved consumer-state area -- never counted, never evicted
+        if reserved:
+            dirnames[:] = [d for d in dirnames
+                           if os.path.join(dirpath, d) != reserved]
         for name in names:
             fp = os.path.join(dirpath, name)
             try:

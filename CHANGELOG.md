@@ -3,6 +3,29 @@
 All notable changes to `wes-local-cache-manager`. Format loosely follows
 Keep a Changelog; this project uses semantic versioning.
 
+## [0.2.0] - 2026-07-13
+
+Reserved consumer-state area — the sweep now protects durable consumer bookkeeping
+from eviction. Enables persistent "seen-store" memory for consumer plugins
+(sage-yolo2) so one-shot scheduled runs survive pod restarts without re-processing.
+
+### Added
+- `RESERVED_STATE_DIRNAME` (default `.state`): a top-level dir under `CACHE_ROOT`
+  (`/local-cache/.state/`) that is **never counted toward any cap and never
+  evicted**. Both the per-unit pass and the node-wide backstop skip it (via
+  `files_by_age` pruning), and `cache_units` never yields it. Set to `""` to disable.
+- Three tests: reserved state survives the node backstop even as the oldest file;
+  reserved bytes excluded from the total; reserved dir is not treated as a cache unit.
+- HANDOFF "Reserved consumer-state area (`.state`)" section documenting the why and
+  the `/local-cache/.state/<plugin>/…` convention.
+
+### Why
+Consumer plugins need node-persistent memory of what they've already processed. The
+only persistent, plugin-writable path is `/local-cache`, but the blunt oldest-first
+backstop would evict a rarely-touched seen-store precisely under disk pressure. This
+carve-out makes `/local-cache` the single durable home for both cached frames and
+tiny consumer state, with no additional mount.
+
 ## [0.1.2] - 2026-07-13
 
 Documentation-only pass (no behavior change): harvested the actionable mount

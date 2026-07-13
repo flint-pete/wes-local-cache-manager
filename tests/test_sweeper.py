@@ -146,6 +146,42 @@ def test_sweep_node_backstop_and_strays(tmp_path, caps, monkeypatch):
     assert not os.path.exists(str(tmp_path / "stray.jpg"))  # oldest evicted first
 
 
+# --- reserved consumer-state area (never counted, never evicted) --------------
+
+def test_reserved_state_survives_node_backstop(tmp_path, caps, monkeypatch):
+    """The .state area is off-limits: it must survive even when the node cap is
+    blown and it is the OLDEST thing on disk (prime eviction target otherwise)."""
+    monkeypatch.setattr(sweeper, "CACHE_ROOT", str(tmp_path))
+    monkeypatch.setattr(sweeper, "RESERVED_STATE_DIRNAME", ".state")
+    monkeypatch.setattr(sweeper, "PER_NODE_MAX", 3_000)
+    now = time.time()
+    seen = _write(str(tmp_path / ".state" / "sage-yolo2" / "seen"), 500,
+                  mtime=now - 9999)                      # oldest -> would go first
+    _write(str(tmp_path / "ns" / "p" / "a.jpg"), 2000, mtime=now - 20)
+    _write(str(tmp_path / "ns" / "p" / "b.jpg"), 2000, mtime=now - 10)
+    sweeper.sweep()
+    assert os.path.exists(seen)                           # consumer memory preserved
+
+
+def test_reserved_state_not_counted_toward_total(tmp_path, caps, monkeypatch):
+    """Bytes under .state are excluded from the accounting entirely."""
+    monkeypatch.setattr(sweeper, "CACHE_ROOT", str(tmp_path))
+    monkeypatch.setattr(sweeper, "RESERVED_STATE_DIRNAME", ".state")
+    _write(str(tmp_path / ".state" / "seen"), 5000)
+    _write(str(tmp_path / "ns" / "p" / "a.jpg"), 1000)
+    total = sum(f[1] for f in sweeper.files_by_age(str(tmp_path)))
+    assert total == 1000                                  # .state's 5000 not counted
+
+
+def test_reserved_state_is_not_a_cache_unit(tmp_path, monkeypatch):
+    monkeypatch.setattr(sweeper, "CACHE_ROOT", str(tmp_path))
+    monkeypatch.setattr(sweeper, "RESERVED_STATE_DIRNAME", ".state")
+    _write(str(tmp_path / ".state" / "sub" / "seen"), 1)  # sits at unit depth
+    _write(str(tmp_path / "ns" / "plugin" / "a.jpg"), 1)
+    units = list(sweeper.cache_units(str(tmp_path), 2))
+    assert units == [str(tmp_path / "ns" / "plugin")]     # .state/sub NOT a unit
+
+
 def test_sweep_dry_run_keeps_everything(tmp_path, caps, monkeypatch):
     monkeypatch.setattr(sweeper, "CACHE_ROOT", str(tmp_path))
     monkeypatch.setattr(sweeper, "DRY_RUN", True)

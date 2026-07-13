@@ -17,6 +17,23 @@ cap (default 15 GiB). It never uploads and never decides *which* files matter;
 graceful, semantics-aware eviction stays in the plugin (Layer 1). This service is only
 the disk backstop (Layer 2). A well-behaved plugin is never touched.
 
+## Reserved consumer-state area (`.state`)
+
+Consumer plugins (e.g. sage-yolo2) need durable, node-persistent bookkeeping — a
+"seen-store" of already-processed frames — that MUST survive pod restarts, otherwise
+a one-shot scheduled run starts with no memory of what it already consumed and
+re-processes everything. The only node-persistent, plugin-writable place is
+`/local-cache` itself, but the node-wide backstop evicts the oldest file regardless
+of what it is — and a rarely-touched seen-store is exactly the oldest file, so it
+would be silently wiped under disk pressure.
+
+So the sweep **carves out a reserved area**: a top-level directory named by
+`RESERVED_STATE_DIRNAME` (default `.state`, i.e. `/local-cache/.state/`) is **never
+counted toward any cap and never evicted**. Consumers keep their tiny state there
+(convention: `/local-cache/.state/<plugin>/…`). Consumers are trusted to keep it
+small; it is excluded from the byte accounting entirely. Set
+`RESERVED_STATE_DIRNAME=""` to disable the carve-out.
+
 ## Ready for review
 
 - **Verified live on a node (H00F/Thor):** deployed as a DaemonSet, healthy, sweeps

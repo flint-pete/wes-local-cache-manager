@@ -3,6 +3,21 @@
 All notable changes to `wes-local-cache-manager`. Format loosely follows
 Keep a Changelog; this project uses semantic versioning.
 
+## [0.1.1] - 2026-07-13
+
+Documentation-only pass for the CI handoff (no behavior change).
+
+### Fixed
+- Corrected the cache-unit convention across README/HANDOFF/DESIGN + manifest
+  comment: the manager caps whatever sits at `CACHE_UNIT_DEPTH` (default 2) below the
+  root and does not enforce `<namespace>/<plugin>` naming. The real consumer
+  (`image-sampler2`) uses `<cache-name>/<camera>` and mounts the cache ROOT; docs now
+  describe the unit generically and fix the plugin-dev mount example (root, not a
+  per-plugin subdir — the prior example double-nested the path).
+- Dropped a stale `--require-local-cache` reference (the flag was removed;
+  continuous mode now requires the cache unconditionally and fails fast if absent).
+- Corrected the test count (12 → 21) in HANDOFF.
+
 ## [0.1.0] - 2026-07-08
 
 First tagged release — proposed for Sage CI rotation review (see `HANDOFF.md`).

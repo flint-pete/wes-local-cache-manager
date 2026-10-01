@@ -40,10 +40,11 @@ small; it is excluded from the byte accounting entirely. Set
   at production caps; eviction confirmed end-to-end against real camera frames
   written by `media-sampler3` (per-unit eviction fired, neighbor untouched, node
   backstop measured).
-- **Unit tests:** `make test` (pure stdlib + pytest) — 21 tests covering oldest-first
+- **Unit tests:** `make test` (pure stdlib + pytest) — 24 tests covering oldest-first
   eviction, per-unit isolation, node backstop + stray sweep, DRY_RUN (deletes
   nothing), files vanishing mid-scan, unit-depth boundary, empty-cache safety,
-  symlink hardening (world-writable dir), and fail-fast config validation.
+  symlink hardening (world-writable dir), fail-fast config validation, and the
+  reserved `.state` area (survives the backstop, excluded from totals, never a unit).
 - **Two manifests:** `kubernetes/wes-local-cache-manager.yaml` (production: no node
   pin, registry image) and `kubernetes/test/…test.yaml` (single-node side-load
   overlay used by `test-add-node.sh`).
@@ -70,11 +71,14 @@ These are legitimately platform-side and need CI decisions/infra we don't contro
    alongside `wes-upload-agent` (configs + kustomization + node manifest) so it
    deploys fleet-wide, then retire the temporary `test-add-node.sh` /
    `test-remove-node.sh` scripts.
-4. **Confirm cross-user reads (the one behavior needing a second plugin).** The
-   producer/consumer premise assumes a consumer pod (a different UID) can read a
-   producer's files under the sticky shared dir. We provisioned `1777` and verified
-   a producer writes, but have not yet run a *separate* consumer pod reading across
-   units. Worth confirming with any second plugin during integration.
+4. **Cross-user reads — verified.** The producer/consumer premise is that a
+   *separate* consumer pod can read a producer's files under the sticky (`1777`)
+   shared dir. This is now verified by the H041 cascade (Sep 2026): media-sampler3
+   wrote frames, a separate sage-yolo2 pod read them and wrote crops into its own
+   unit, and a separate sage-bioclip2 pod read those crops — see "What was verified,
+   and where" in
+   [INSTALLING-MEDIA-SAMPLER3.md](https://github.com/flint-pete/media-sampler3/blob/master/INSTALLING-MEDIA-SAMPLER3.md#what-was-verified-and-where).
+   Nothing left to do here beyond keeping `1777` in the node provisioning.
 
 ## How a plugin gets the `/local-cache` mount
 
@@ -89,7 +93,8 @@ a new schema field:
   `/media/plugin-data/local-cache → /local-cache` **today**, no code change.
 - **Caveat 1 — it currently requires a nodeSelector.** Volume mounting errors out
   without `--selector`/`--node` (resourcemanager.go). Fine for pinned deployments,
-  awkward for fleet-portable jobs.
+  awkward for fleet-portable jobs. This is why every `pluginctl run` in the install
+  guide passes `--selector zone=core`.
 - **Caveat 2 — an unresolved root-ownership TODO.** The code has a commented-out
   `IsOwnedByRoot` check meant to forbid mounting non-root-owned host dirs; until
   it's resolved, arbitrary hostPath mounting is a flagged security concern.

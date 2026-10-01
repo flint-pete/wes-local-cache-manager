@@ -3,6 +3,28 @@
 All notable changes to `wes-local-cache-manager`. Format loosely follows
 Keep a Changelog; this project uses semantic versioning.
 
+## [0.2.1] - 2026-10-01
+
+Documentation + production-manifest pin. No code change, so the image stays
+`0.2.0` (the manifest comment notes that the image tag can lag `VERSION`).
+
+### Fixed
+- Production manifest pinned `waggle/wes-local-cache-manager:0.1.0`, which predates
+  the 0.2.0 `.state` carve-out. Now pins `0.2.0`.
+- HANDOFF test count (21 -> 24, including the `.state` tests).
+- "per-plugin" cap wording -> "per-unit"; `<namespace>/<plugin>` path examples ->
+  `<cache-name>/<source>` (e.g. `camera/top`), matching media-sampler3.
+- Bare `kubectl` in docs -> `sudo k3s kubectl`.
+
+### Changed (docs)
+- Config tables now list `RESERVED_STATE_DIRNAME`, `RUN_ONCE`, `HEALTH_FILE`, and
+  state that `DRY_RUN` is enabled only by `1`/`true`/`yes`/`on`.
+- HANDOFF: cross-user reads marked verified (H041 cascade, see the media-sampler3
+  install guide); nodeSelector caveat linked to the `--selector zone=core` launches.
+- README: new "Who uses this cache" section (directory diagram, links to
+  media-sampler3 / sage-yolo2 / sage-bioclip2, install guide, reboot runbook) and a
+  note that the test scripts use `sudo k3s kubectl` and rootless podman.
+
 ## [0.2.0] - 2026-07-13
 
 Reserved consumer-state area — the sweep now protects durable consumer bookkeeping

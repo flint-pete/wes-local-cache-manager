@@ -51,7 +51,10 @@ spec:
           operator: "Exists"
       containers:
         - name: wes-local-cache-manager
-          image: waggle/wes-local-cache-manager:0.1.0   # image tag = code release (0.1.1 was docs-only, no rebuild); bump on any code change. See VERSION.
+          # Image tag = last CODE release (0.2.0 added the .state carve-out). It can
+          # lag the repo VERSION: 0.2.1 was docs + this pin only, so no new image.
+          # Bump on any code change to manager/ or the Dockerfile.
+          image: waggle/wes-local-cache-manager:0.2.0
           imagePullPolicy: IfNotPresent
           resources:
             limits:

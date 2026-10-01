@@ -71,7 +71,7 @@ deleting **oldest-first** — and it only ever deletes from a cache area that ha
    (`CACHE_UNIT_DEPTH`, default 2). The manager does not care what those levels are
    *named* — it just groups everything under each depth-2 directory as one unit and
    caps it. Plugins pick the naming by convention; e.g. a media producer writes
-   `<cache-name>/<source>/` (for example `/local-cache/camera1/top/`), so a unit there
+   `<cache-name>/<source>/` (for example `/local-cache/camera/top/`), so a unit there
    is one camera stream. Each unit gets its own cap, so **one greedy producer starves
    only its own unit**, never its neighbors.
 
@@ -82,7 +82,7 @@ deleting **oldest-first** — and it only ever deletes from a cache area that ha
 That's the whole job. It does **not** upload anything, and it does **not** decide
 *which* files matter — see the two-layer model below.
 
-The defaults (2 GiB per plugin, 15 GiB per node) are conservative and configurable
+The defaults (2 GiB per unit, 15 GiB per node) are conservative and configurable
 via a ConfigMap; a sysadmin tunes them per fleet without touching code.
 
 ---
@@ -111,7 +111,7 @@ service handles only the disk bound, leaving retention *policy* to the producer.
 ### Worked example: a media producer
 
 A media producer runs in continuous mode, capturing frames from a camera and writing
-them into `/local-cache/<cache-name>/<source>/` (for example `/local-cache/camera1/top/`).
+them into `/local-cache/<cache-name>/<source>/` (for example `/local-cache/camera/top/`).
 That `<cache-name>/<source>` directory is the depth-2 "unit" the manager caps.
 
 - **Layer 1 (its job):** it maintains a bounded ring — e.g. `--cache-max-count 5`
@@ -179,7 +179,7 @@ Idempotent; safe to re-run. It performs five steps:
 1. **Provision the cache host dir** — creates `/media/plugin-data/local-cache`
    (sibling of the existing `/media/plugin-data/uploads`) as world-writable + sticky
    (`1777`), so plugin pods running under different UIDs can each create their own
-   `<namespace>/<plugin>` subtree and read across them, while the sticky bit stops
+   `<cache-name>/<source>` subtree (e.g. `camera/top`) and read across them, while the sticky bit stops
    one plugin from deleting another's files by name.
    *(ANSIBLE CANDIDATE: node filesystem setup.)*
 2. **Build the image** natively with `podman` (works where the ECR build path
@@ -249,9 +249,13 @@ All knobs come from the `wes-local-cache-manager-env` ConfigMap:
 | `PER_SUBDIR_MAX_BYTES` | `2147483648` (2 GiB) | Per-unit hard cap. |
 | `PER_NODE_MAX_BYTES` | `16106127360` (15 GiB) | Per-node hard cap (outer ceiling). |
 | `CACHE_UNIT_DEPTH` | `2` | Directory levels below root that define a "unit" (e.g. `<cache-name>/<camera>`). |
-| `DRY_RUN` | unset | If set (`1`/`true`), log what *would* be evicted without deleting — useful when first enabling it on a fleet. |
+| `RESERVED_STATE_DIRNAME` | `.state` | Top-level dir under the root (`/local-cache/.state/`) that is never counted toward a cap and never evicted — where consumers keep seen-stores. `""` disables the carve-out. |
+| `DRY_RUN` | unset | Enabled only by `1`/`true`/`yes`/`on` (case-insensitive): log what *would* be evicted without deleting — useful when first enabling it on a fleet. Any other value (including `0`/`false`) means real eviction. |
+| `RUN_ONCE` | unset | Same truthy values: run a single sweep and exit (tests, manual runs). Not in the ConfigMap. |
+| `HEALTH_FILE` | `/tmp/healthy` | Touched after each successful sweep; the liveness probe deletes it, so a stuck loop fails the probe and the pod restarts. Not in the ConfigMap. |
 
-The service logs one status line per sweep (visible via `kubectl logs`), reporting
+The service logs one status line per sweep (visible via
+`sudo k3s kubectl logs -l app.kubernetes.io/name=wes-local-cache-manager`), reporting
 the number of units, the node total, and the active caps — so operators can watch
 headroom and confirm the backstop is (correctly) idle under normal load.
 
@@ -295,14 +299,16 @@ for later:
 
 - **No discovery mechanism.** There is currently no registry that tells a consumer
   *which* producers are writing *what* into `/local-cache`, or where. Producers and
-  consumers agree on paths by convention (`<namespace>/<plugin>/...`). A future
+  consumers agree on paths by convention (`<cache-name>/<source>/...`, e.g.
+  `camera/top/`). A future
   discovery/advertisement mechanism (a manifest of active caches, or a well-known
   index) would let consumers find producers dynamically instead of by prior
   agreement.
 - **Per-plugin size requests.** Every unit gets the same `PER_SUBDIR_MAX_BYTES`
   today. A plugin that legitimately needs a bigger allocation could request one via a
   `sage.yaml` field surfaced to the manager (e.g. a `.cache-quota` sidecar SES
-  writes, a pod annotation, or a manager ConfigMap keyed by `<ns>/<plugin>`). The
+  writes, a pod annotation, or a manager ConfigMap keyed by `<cache-name>/<source>`,
+  e.g. `camera/top`). The
   per-node cap would always win, so no single plugin could ever starve the node.
 - **Filesystem project quotas** as optional hardening where the backing filesystem
   supports them (XFS/ext4), turning the soft sweep into a hard `ENOSPC` wall.
@@ -337,7 +343,7 @@ enhancement is additive.
 `wes-local-cache-manager` adds a **shared, node-local cache** (`/local-cache`) that
 lets plugins hand data to each other on the same node — the producer/consumer model
 that `/uploads` (cloud-bound, transient) never supported. It makes that cache safe
-with **two size caps** (per-plugin and per-node) enforced by a small DaemonSet that
+with **two size caps** (per-unit and per-node) enforced by a small DaemonSet that
 mirrors `wes-upload-agent`. Retention *policy* stays with the plugin (Layer 1); this
 service is only the disk *backstop* (Layer 2). Stand it up today with the two
 temporary scripts; adoption is small and requires no understanding beyond this

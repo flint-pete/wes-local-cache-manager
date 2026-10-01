@@ -38,7 +38,7 @@ small; it is excluded from the byte accounting entirely. Set
 
 - **Verified live on a node (H00F/Thor):** deployed as a DaemonSet, healthy, sweeps
   at production caps; eviction confirmed end-to-end against real camera frames
-  written by `image-sampler2` (per-unit eviction fired, neighbor untouched, node
+  written by `media-sampler3` (per-unit eviction fired, neighbor untouched, node
   backstop measured).
 - **Unit tests:** `make test` (pure stdlib + pytest) — 21 tests covering oldest-first
   eviction, per-unit isolation, node backstop + stray sweep, DRY_RUN (deletes

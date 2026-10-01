@@ -70,10 +70,10 @@ deleting **oldest-first** — and it only ever deletes from a cache area that ha
    A "cache unit" is simply the directory a fixed depth below the root
    (`CACHE_UNIT_DEPTH`, default 2). The manager does not care what those levels are
    *named* — it just groups everything under each depth-2 directory as one unit and
-   caps it. Plugins pick the naming by convention; e.g. `image-sampler2` writes
-   `<cache-name>/<camera>/` (`/local-cache/hummingcam/top/`), so a unit there is one
-   camera stream. Each unit gets its own cap, so **one greedy producer starves only
-   its own unit**, never its neighbors.
+   caps it. Plugins pick the naming by convention; e.g. a media producer writes
+   `<cache-name>/<source>/` (for example `/local-cache/camera1/top/`), so a unit there
+   is one camera stream. Each unit gets its own cap, so **one greedy producer starves
+   only its own unit**, never its neighbors.
 
 2. **Per-node cap** (`PER_NODE_MAX_BYTES`, default **15 GiB**).
    The outer ceiling across the entire cache root. This pass also sweeps up stray
@@ -108,11 +108,11 @@ The division is the same one `/uploads` already uses: the *plugin* decides what 
 produce; the *platform service* handles the lifecycle mechanics. Here the platform
 service handles only the disk bound, leaving retention *policy* to the producer.
 
-### Worked example: `image-sampler2` (a producer)
+### Worked example: a media producer
 
-`image-sampler2` runs in continuous mode, capturing frames from a camera and writing
-them into `/local-cache/<cache-name>/<camera>/` (e.g. `/local-cache/hummingcam/top/`).
-That `<cache-name>/<camera>` directory is the depth-2 "unit" the manager caps.
+A media producer runs in continuous mode, capturing frames from a camera and writing
+them into `/local-cache/<cache-name>/<source>/` (for example `/local-cache/camera1/top/`).
+That `<cache-name>/<source>` directory is the depth-2 "unit" the manager caps.
 
 - **Layer 1 (its job):** it maintains a bounded ring — e.g. `--cache-max-count 5`
   keeps only the newest 5 frames, evicting the oldest as new ones arrive. It stays
@@ -264,10 +264,10 @@ To participate in the shared cache, a plugin:
 1. **Writes under `/local-cache`**, grouping its data into its own subtree so it maps
    to one (or a few) cache units. The manager caps whatever sits at
    `CACHE_UNIT_DEPTH` (default 2) below the root, so keep your layout at least two
-   levels deep — e.g. `image-sampler2` uses `/local-cache/<cache-name>/<camera>/`.
+   levels deep — e.g. `media-sampler3` uses `/local-cache/<cache-name>/<source>/`.
    Pick names that won't collide with other producers (a plugin/job name or a chosen
    cache-name works well). A shared library helper resolves the root; e.g.
-   `image-sampler2` auto-detects `/local-cache` when it is mounted.
+   `media-sampler3` auto-detects `/local-cache` when it is mounted.
 2. **Is started with the cache root mounted** into the pod, e.g.:
    ```
    pluginctl run ... -v /media/plugin-data/local-cache:/local-cache ...
@@ -279,7 +279,7 @@ To participate in the shared cache, a plugin:
 4. **Fails cleanly if the cache is required but absent.** A producer that *expects*
    the shared cache should refuse to run (with a clear message) on a node lacking
    this component or the volume mount, rather than silently writing to pod-ephemeral
-   `/tmp` where no consumer can see it. (`image-sampler2`'s continuous mode requires
+   `/tmp` where no consumer can see it. (`media-sampler3`'s continuous mode requires
    the cache and fails fast if the resolved `/local-cache` root is missing or not
    writable.)
 

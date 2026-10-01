@@ -49,8 +49,8 @@ Documentation-only pass for the CI handoff (no behavior change).
 ### Fixed
 - Corrected the cache-unit convention across README/HANDOFF/DESIGN + manifest
   comment: the manager caps whatever sits at `CACHE_UNIT_DEPTH` (default 2) below the
-  root and does not enforce `<namespace>/<plugin>` naming. The real consumer
-  (`image-sampler2`) uses `<cache-name>/<camera>` and mounts the cache ROOT; docs now
+  root and does not enforce `<namespace>/<plugin>` naming. The real producer
+  (`media-sampler3`) uses `<cache-name>/<source>` and mounts the cache ROOT; docs now
   describe the unit generically and fix the plugin-dev mount example (root, not a
   per-plugin subdir — the prior example double-nested the path).
 - Dropped a stale `--require-local-cache` reference (the flag was removed;

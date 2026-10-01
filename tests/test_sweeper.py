@@ -109,7 +109,7 @@ def test_evict_dry_run_deletes_nothing(tmp_path, caps, monkeypatch):
 def test_sweep_per_unit_cap_evicts_oldest(tmp_path, caps, monkeypatch):
     monkeypatch.setattr(sweeper, "CACHE_ROOT", str(tmp_path))
     now = time.time()
-    unit = tmp_path / "beckman" / "image-sampler2"
+    unit = tmp_path / "beckman" / "media-sampler3"
     # 5 x 1000B = 5000 > 3000 cap -> evict 2 oldest to land at 3000
     for i in range(5):
         _write(str(unit / f"f{i}.jpg"), 1000, mtime=now - (5 - i) * 10)

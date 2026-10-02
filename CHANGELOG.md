@@ -5,6 +5,9 @@ Keep a Changelog; this project uses semantic versioning.
 
 ## [0.2.1] - 2026-10-01
 
+- Comments and docs no longer describe the Sage ECR builder as broken; the
+  cyberinfrastructure team fixed Thor builds. Native podman build stays the test path.
+
 Documentation + production-manifest pin. No code change, so the image stays
 `0.2.0` (the manifest comment notes that the image tag can lag `VERSION`).
 

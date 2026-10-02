@@ -59,8 +59,7 @@ These are legitimately platform-side and need CI decisions/infra we don't contro
 
 1. **Publish the image.** Build `waggle/wes-local-cache-manager:<tag>` and push to
    the registry the WES stack pulls from. Today it's built natively with `podman`
-   on the node and side-loaded (the ECR builder's `runc /proc/acpi` bug blocks the
-   normal path — same issue tracked elsewhere). The Dockerfile is stdlib-only, no
+   on the node and side-loaded for testing. The Dockerfile is stdlib-only, no
    pip layer. Then pin the production manifest to the released tag.
 2. **Node provisioning.** Create `/media/plugin-data/local-cache` (sibling of
    `…/uploads`) as world-writable + sticky (`1777`) in the node setup /ansible, so

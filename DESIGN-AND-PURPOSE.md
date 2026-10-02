@@ -182,8 +182,8 @@ Idempotent; safe to re-run. It performs five steps:
    `<cache-name>/<source>` subtree (e.g. `camera/top`) and read across them, while the sticky bit stops
    one plugin from deleting another's files by name.
    *(ANSIBLE CANDIDATE: node filesystem setup.)*
-2. **Build the image** natively with `podman` (works where the ECR build path
-   currently fails). In production this image would be built once and published to a
+2. **Build the image** natively with `podman` (the test path; it needs no
+   registry). In production this image would be built once and published to a
    registry. *(ANSIBLE CANDIDATE: image build/publish.)*
 3. **Side-load into k3s containerd** (`podman save | k3s ctr images import`), because
    podman's image store is separate from k3s's. *(ANSIBLE CANDIDATE: image

@@ -41,7 +41,7 @@ sudo chmod 1777 "$CACHE_DIR"
 echo "      $(sudo ls -ld "$CACHE_DIR")"
 
 # === STEP 2: build the image natively  [ANSIBLE CANDIDATE: image build/publish] =
-# Native podman build works where the ECR buildkit builder fails (Infra #2). In
+# Native podman build on the node (no registry needed for the test). In
 # production this image would instead be built once and published to a registry.
 echo "[2/5] podman build -> $IMAGE"
 podman build -t "$IMAGE" .

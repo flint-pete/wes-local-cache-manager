@@ -7,6 +7,24 @@ to `/uploads` — bounded by a small DaemonSet so it can't overrun a node's disk
 Read `DESIGN-AND-PURPOSE.md` for the full rationale; this file is the review
 checklist: what's done, and what we're asking the CI team to own.
 
+## Status (2026-11-10)
+
+- **The companion node-identity work is merged upstream** (waggle-edge-stack
+  697e338, edge-scheduler/pluginctl 0.29.2, pywaggle 0.57.1). Thank you! That
+  leaves this cache manager as **the remaining piece of the media stack that is
+  not yet in WES**. Nothing below has an upstream equivalent yet.
+- Re-checked against upstream HEAD (edge-scheduler d119a00, waggle-edge-stack
+  697e338):
+  - `update-stack.sh` has no `--prune`, so a WES update leaves a side-loaded
+    `wes-local-cache-manager` DaemonSet running. Our test install stays safe across
+    WES updates.
+  - `pluginSpec` volume mounts still require a nodeSelector
+    (`resourcemanager.go`: "volume mounting requires nodeSelector"), and the
+    `IsOwnedByRoot` check is still commented out. The asks in "How a plugin gets
+    the `/local-cache` mount" below stand unchanged.
+- **Next test node: H019** (H00F's cameras were retasked). The full media stack,
+  this manager included, gets re-verified there on the upstream identity path.
+
 ## What it is (one paragraph)
 
 A tiny stdlib-Python DaemonSet, modeled directly on `wes-upload-agent`. It mounts

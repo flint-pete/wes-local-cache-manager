@@ -74,7 +74,7 @@ noted in the design doc as optional belt-and-suspenders.)
 ## Test-add to a node
 
 ```bash
-# on the node (or: ssh node-H00F.sage 'bash -s' < test-add-node.sh)
+# on the node (or: ssh node-<VSN>.sage 'bash -s' < test-add-node.sh)
 cd wes-local-cache-manager
 ./test-add-node.sh                 # provision, build, side-load, apply, verify
 # ... observe: sudo k3s kubectl logs -l app.kubernetes.io/name=wes-local-cache-manager

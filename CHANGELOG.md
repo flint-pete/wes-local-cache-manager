@@ -3,6 +3,15 @@
 All notable changes to `wes-local-cache-manager`. Format loosely follows
 Keep a Changelog; this project uses semantic versioning.
 
+## [0.2.2] - 2026-11-10
+
+Docs only; image stays `0.2.0`.
+
+- HANDOFF: status after the CI team merged the node-identity work (WES 697e338,
+  SES 0.29.2, pywaggle 0.57.1). This manager is now the media stack's one
+  un-merged platform piece; re-checked that a WES update does not prune it and that
+  volume mounts still need a nodeSelector. Next test node: H019.
+
 ## [0.2.1] - 2026-10-01
 
 - Comments and docs no longer describe the Sage ECR builder as broken; the

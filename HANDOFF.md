@@ -22,7 +22,7 @@ checklist: what's done, and what we're asking the CI team to own.
     (`resourcemanager.go`: "volume mounting requires nodeSelector"), and the
     `IsOwnedByRoot` check is still commented out. The asks in "How a plugin gets
     the `/local-cache` mount" below stand unchanged.
-- **Next test node: H019** (H00F's cameras were retasked). The full media stack,
+- **Test node: H03B** (it has a live Hanwha camera; H019 has no camera and H00F's cameras were retasked). Not yet installed there (Step 1 pending). The full media stack,
   this manager included, gets re-verified there on the upstream identity path.
 
 ## What it is (one paragraph)
